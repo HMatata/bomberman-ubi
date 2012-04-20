@@ -1,0 +1,5 @@
+rmdir /s /q "BombermanPlayer"
+rmdir /s /q "Exe"
+rmdir /s /q "Lib"
+rmdir /s /q "tmp"
+rmdir /s /q "bin"
