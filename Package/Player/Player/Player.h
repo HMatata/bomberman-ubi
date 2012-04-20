@@ -2,6 +2,7 @@
 
 #include "IGame.h"
 #include "ISimulation.h"
+#include <stdio.h>
 
 // to be implemented by the player (contestant)
 void PlayerInit(int playerId, IGame* game);
