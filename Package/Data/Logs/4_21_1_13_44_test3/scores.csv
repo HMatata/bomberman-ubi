@@ -1,0 +1,4 @@
+Player,Place,Score,Kills,Kill Assists,Suicides,Suicides Assists,Walls Damaged,Bombs Placed,Explosions Dodged,Sit on Bomb,Stand in Place
+Dumb,4,-6,0,0,1,0,7,7,2,0,5
+Empty,2,35,0,0,0,0,0,0,0,0,64
+Bhaal,1,100,1,0,0,0,16,25,9,2,8
