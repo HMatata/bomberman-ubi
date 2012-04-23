@@ -35,7 +35,6 @@ IGame *XGAME;
 
 void PrintMap() {
 	int i,j;
-	return;
 
 	fprintf(out, "Map ========= \n");
 
@@ -146,7 +145,7 @@ void GetChainMatrix()
 		}
 	}
 	CreateDangerZones();
-	//PrintMap();
+	PrintMap();
 }
 
 
@@ -208,8 +207,10 @@ void generate_heat_map (IGame *game, int playerId)
 	qe e;
 	memset(heatmap, 0, sizeof(heatmap));
 	for (int i = 0; i < game->PlayerCount(); ++i)
-		
-		{
+	{
+			if( !game->PlayerAlive(i) )
+				continue;
+
 			vector < vector < bool > > viz (16, vector < bool > (16, 0));
 			//q.push(make_pair(inf, make_pair(game->PlayerPosX(i), game->PlayerPosY(i))));
 			e.dist = 0;
@@ -254,7 +255,12 @@ void generate_heat_map (IGame *game, int playerId)
 
 					e.dist = t.dist + 1;
 					if (i!=playerId)
-						e.heat = t.heat / kids;
+					{
+						if (kids == 1)
+							e.heat = t.heat *2;
+						else
+							e.heat = t.heat / kids;
+					}
 					else
 						e.heat = -(t.heat /kids);
 					if (e.heat < 0.0001)
@@ -287,61 +293,24 @@ float dfs (IGame *game, int playerId, int depth, int from)
 {
 	if (!game->PlayerAlive(playerId))
 			return 0;
+	
+	
+
 	if (depth == 0)
 			return heatmap[game->PlayerPosX(playerId)][game->PlayerPosY(playerId)]+1;
 	if (v2[game->PlayerPosX(playerId)][game->PlayerPosY(playerId)][depth])
 		return v[game->PlayerPosX(playerId)][game->PlayerPosY(playerId)][depth];
 	
-/*
-	
-	int c = 0;
-	Move o = moveNone;
-	for (Move i = moveUp; i != moveCount; ++i)
-	{
-		if (!simulation->CanMove(game, playerId, i))
-			continue;
-
-		if (i==rev[i])
-			continue;
-		
-		++c;
-		o = i;
-	}
-
-	if (c==1)
-	{
-		int dx = mx[o];
-		int dy = my[o];
-		int x = game->PlayerPosX(playerId);
-		int y = game->PlayerPosY(playerId);
-		x += dx;
-		y += dy;
-		for (;; x+=dx, y+=dy)
-		{
-			bool kill = false;
-			Move i;
-			bool ok = false;
-			for (i = moveUp; i != moveCount; ++i)
-			{
-				if (i==rev[i] || i== o)
-					continue;
-				ok = !game->Wall(x+dx[i], y+dy[i]) < 0;
-
-				
-			}
-			if (ok)
-		}
-	}
-	*/
-
 	//generate_heat_map(game, playerId);
-	XGAME = game;
-	GetChainMatrix();
+//	XGAME = game;
+//	GetChainMatrix();
 	float r = 0;
 	for (Move i = moveFirst; i != moveCount; ++i)
 	{
-		
-		if (simulation->CanMove(game, playerId, i) )
+		int x = game->PlayerPosX(playerId)+my[i];
+		int y = game->PlayerPosY(playerId)+mx[i];
+		if (simulation->CanMove(game, playerId, i) || (x > -1 && y > -1 && 
+							x <game->SizeX() && y < game->SizeY() &&  game->Bomb(x,y) == -1))
 		{
 			IGame *ngame = game->Clone();
 			simulation->StoreMove(playerId, i, 0);
@@ -364,52 +333,100 @@ void PlayerMove(int playerId, IGame* game, Move& move, bool& bomb)
 {
 	XGAME = game;
 	GetChainMatrix();
-	fprintf(out,"Turn: %d\n", turn );
-	fflush(out);
+//	fprintf(out,"Turn: %d\n", turn );
+//	fflush(out);
 	//simulation->BeginTurn(game);
 	++turn;
-	generate_heat_map(game, playerId);
+	
 	move = moveNone;
 	float m = -1000;
 	int gata = 0;
-	for (int k = 1; k >= 0 && !gata; --k)
-	for (Move i = moveUp; i <= moveCount; ++i)
-	{
-		if (k == 0 && m > 0)
-		{
-			gata = 1;
-			break;
-		}
-		if (i == moveCount)
-			i = moveNone;
-		if (simulation->CanMove(game, playerId, i) || game->Bomb(game->PlayerPosX(playerId)+my[i],game->PlayerPosY(playerId)+mx[i]) == -1)
+	int killswitch = 0;
+	vector < int > bmbs;
+	memset(heatmap, 0, sizeof(heatmap));
+	for (int i = 0; i < game->PlayerCount(); ++ i)
+		if(game->PlayerAlive(i) && i!=playerId)
 		{
 			IGame * ngame = game->Clone();
-			simulation->StoreMove(playerId, i, k);
+			int &x = ngame->Bomb(ngame->PlayerPosX(i), ngame->PlayerPosY(i));
+			x = 7;
 			simulation->BeginTurn(ngame);
 			simulation->EndTurn(ngame);
 			memset(v2, 0, sizeof(v2));
-			if (ngame->PlayerAlive(playerId))
-			{
-				float o;
-				o = dfs(ngame, playerId, 7, i);
-				if (o > m)
-				{
-					m = o;
-					move = i;
-					bomb = k;
-				}
-			}
+			float f1 = dfs(ngame, i, 6, 0);
 			delete ngame;
+
+
+		/*	ngame = game->Clone();
+			simulation->BeginTurn(ngame);
+			simulation->EndTurn(ngame);
+			memset(v2, 0, sizeof(v2));
+			float f2 = dfs (ngame, i, 6, 0);*/
+			if (!(f1 <= 0.001))
+			{
+				bmbs.push_back(i);
+			}
 			//delete ngame;
+
 		}
-		if (i == moveNone)
+	for (int we = 6; we >=0; we-=6)
+	{
+
+		for (int i = 0; i < bmbs.size(); ++ i)
+		{
+			int &x = game->Bomb(game->PlayerPosX(bmbs[i]), game->PlayerPosY(bmbs[i]));
+			x = we;
+		}
+		generate_heat_map(game, playerId);
+		for (int k = 1; k >= 0 && !gata; --k)
+		for (Move i = moveUp; i <= moveCount; ++i)
+		{
+			if (k == 0 && m > 0)
+			{
+				gata = 1;
+				break;
+			}
+			if (i == moveCount)
+				i = moveNone;
+			if (simulation->CanMove(game, playerId, i) || game->Bomb(game->PlayerPosX(playerId)+my[i],game->PlayerPosY(playerId)+mx[i]) == -1)
+			{
+				IGame * ngame = game->Clone();
+				simulation->StoreMove(playerId, i, k);
+				/*
+				for (int h = 0; h < game->PlayerCount(); ++h)
+					if (h!=playerId)
+						simulation->StoreMove(h, moveNone, true);
+						*/
+				simulation->BeginTurn(ngame);
+				simulation->EndTurn(ngame);
+				if (ngame->PlayerAlive(playerId))
+				{
+					float o;
+					memset(v2, 0, sizeof(v2));
+					o = dfs(ngame, playerId, 8, i);
+					if (o > m)
+					{
+						m = o;
+						move = i;
+						bomb = k;
+					}
+				}
+				delete ngame;
+				//delete ngame;
+			}
+			if (i == moveNone)
+				break;
+
+
+		}
+		if (m <= 0.001) 
+		{
+			printf("I can't survive\n");
+			
+		}
+		else
 			break;
-
-
 	}
-	if (m <= 0.001)
-		printf("I can't survive\n");
 	printf("Time left %d\n", GetTimeLeft());
     //TODO: add AI code here
     //TODO: assign values to move and bomb (which represent your move for this step)
